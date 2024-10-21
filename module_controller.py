@@ -42,31 +42,37 @@ class ModuleController:
         self.send_pwm(direction, intensity)
 
     def drive_all(self, intensity):
+        # print('all')
         val = int(intensity)
         self.arduino.send_serial("allmotor:" + str(val) + "\n")
         result = self.arduino.read_serial()
         print(result)
 
     def send_pwm(self, motor, val):
+        # print('pwm')
         motor = int(motor)
         val = int(val)
         self.arduino.send_serial("motor:" + str(motor) + ":" + str(val) + "\n")
-        result = self.arduino.read_serial()
-        #print(result)
+        # 2行のメッセージが来るため
+        results = [self.arduino.read_serial() for i in range(2)]
+        # print(results)
 
     def allmotor_stop(self):
+        # print('all stop')
         val = int(0)
         self.arduino.send_serial("allmotor:" + str(val) + "\n")
         result = self.arduino.read_serial()
         print(result)
 
     def prm(self, motor_num):
+        # print('prm')
         motor = int(motor_num)
         self.arduino.send_serial("prm:" + str(motor) + "\n")
         result = self.arduino.read_serial()
         print(result)
 
     def valve(self, valve_num, valve_state):
+        # print('valve')
         valve_n = int(valve_num)
         valve_s = int(valve_state)
         self.arduino.send_serial("valve:" + str(valve_n) + ":" + str(valve_s) + "\n")
@@ -75,24 +81,28 @@ class ModuleController:
 
 
     def mod(self, mode_prm):
+        # print('mod')
         mode_p = int(mode_prm)
         self.arduino.send_serial("mod:" +  str(mode_p) + "\n")
         result = self.arduino.read_serial()
         print(result)
 
     def pressure(self, unload_press):
+        # print('stop')
         unload_p = int(unload_press)
         self.arduino.send_serial("stop:" + str(unload_p) + "\n")
         result = self.arduino.read_serial()
         print(result)
 
     def comp_start(self):
+        # print('comp start')
         on_off = int(1)
         self.arduino.send_serial("comp:" + str(on_off) + "\n")
         result = self.arduino.read_serial()
         print(result)
 
     def comp_stop(self):
+        # print('comp stop')
         on_off = int(0)
         self.arduino.send_serial("comp:" + str(on_off) + "\n")
         result = self.arduino.read_serial()
@@ -109,3 +119,23 @@ class ModuleController:
         self.send_pwm(1,0)
         self.send_pwm(3,0)
         self.send_pwm(4,0)
+
+if __name__ == '__main__':
+    import time
+    mc = ModuleController()
+    mc.comp_start()
+
+    while True:
+        q = input('input: ')
+        # mc.mod(1)
+
+        if q == 'q':
+            break
+
+        for i in range(3):
+            mc.valve(i, 1)
+
+        time.sleep(3)
+
+        for i in range(3):
+            mc.valve(i, 0)

@@ -210,8 +210,7 @@ def toward_tool(start_time, count):
     out = cv2.VideoWriter(full_path_v, fourcc, fps, (frame_width, frame_height), True)
 
     #上は動画と手の軌跡を保存している
-    global blackrubber, yellowtube
-
+    
     blackrubber = tools[0]
     yellowtube = tools[1]
     wrong_goals = wrong_tools
@@ -245,201 +244,199 @@ def toward_tool(start_time, count):
     not_wrong_place_count = 0
     # input_thread = threading.Thread(target=check_input)
     # input_thread.start()
-    pre_t = 0
-    previous_time = time.time()
     while flag:
+        time.sleep(0.1)
+
         color_arr = get_color_arr()  #kinectから色情報（配列）を取得
-        t1 = time.time()
         frame = color_arr[:, :, :3]
         out.write(frame)
 
         hand.update(color_arr)
         marker.update(color_arr)
         center = marker.compute_center()
-        trajectory.push_point(hand.center, time.time() - begin_time) 
-        ddt = t1 - pre_t
-        #print(ddt)
-        pre_t = t1
+        trajectory.push_point([x[0],x[3]], time.time() - begin_time)    #手の重心の座標と経過時間をリストに追加
+
         if previous_previous_x is not None:
             previous_previous_x = previous_x
         previous_x = x
-        x, P, h_pred3 = klf.kalman_filter(x, P, np.array(hand.center))
-        xm1, Pm1, h_pred3_1 = klf.kalman_filter(xm1, Pm1, np.array(center))
+        x, P, h_pred3 = klf.kalman_filter(x, P, np.array(hand.center))    #手の重心のカルマンフィルタの更新　x;手の重心にカルマンフィルタかけたもの　pred3;手の重心の予測位置
+        xm1, Pm1, h_pred3_1 = klf.kalman_filter(xm1, Pm1, np.array(center))  #マーカーのカルマンフィルタの更新　x;マーカーにカルマンフィルタかけたもの　pred3;マーカーの重心の予測位置
 
-        deltax = math.sqrt((previous_x[0] - x[0])**2 + (previous_x[3] - x[3])**2)
-        deltadeltax = abs(previous_previous_x - x[0])
+        deltax = math.sqrt((previous_x[0] - x[0])**2 + (previous_x[3] - x[3])**2)   #前ループでの手の重心の座標からどれだけ離れたか
 
         
-        #trajectory_predict.append(h_pred3)
-        # points.append(hand.center)   #手の重心の座標をリストに追加　繰り返して軌跡に
+        draw_marker(color_arr, xm1, marker)     #予測なしマーカー描画
+        draw_marker_direction(color_arr,[xm1[0],xm1[3]], [x[0],x[3]])  #予測なし手の方向描画
         
-        draw_marker(color_arr, xm1, marker)
-        # draw_marker_direction2(color_arr,center, hand.center)  #予測していない手の方向
-        
-        draw_imaginary_object(color_arr)
-        draw_imaginary_line(color_arr, bar1_pt1, bar1_pt2)
+        draw_imaginary_object(color_arr)   #棚を四角で区切る
+        draw_imaginary_line(color_arr, bar1_pt1, bar1_pt2)    #横溝3本
         draw_imaginary_line(color_arr, bar2_pt1, bar2_pt2)
         draw_imaginary_line(color_arr, bar3_pt1, bar3_pt2)
-        #print(six_two_count)
-        print(wrong_place_count)
-        #if deltax < 10 and deltadeltax <10:
-        if blackrubber_count == 6 and yellowtube_count == 2:
-            six_two_count = six_two_count + 1
-        if six_two_count == 1:
+
+        '''これ以降の条件分岐は部品を4つ習得するフェーズにおいて,部品を棚に取りに行くときには手の方向と正しい棚が交わったときにモータ0が振動,手が正しい棚に入ったときに
+            モータ10と14が連続的に振動，間違ったときに断続的に振動，取って手前に部品を起きに行くときは横向きの溝で振動　　　を部品をてまえに4つ揃えるまで行っている
+        '''
+        print(six_two_count)
+        if blackrubber_count == 6 and yellowtube_count == 2:    #ゴム足3つとチューブ1つを取った状態     マルチスレッドにして経過時間でvalveonにしたほうがいい
+            six_two_count = six_two_count + 1         #
+        if six_two_count == 1:    #valveをoffにしてカフを緩める
+            print('valve off')
             mc.valve(0,0)
             mc.valve(1,0)
             mc.valve(2,0)
-        if six_two_count == 10:
+        if six_two_count == 10:    #valveをonにして締める
+            print('valve off')
             mc.valve(0,1)
             mc.valve(1,1) 
             mc.valve(2,1)       
 
-        if in_wrong_place(hand.center, wrong_goals):
+        if in_wrong_place([x[0],x[3]], wrong_goals):   #間違った部品棚に手が入ったときに断続的振動　　マルチスレッドにして経過時間でsend_pwmの強さを切り替えたほうがいい
             wrong_place_count = wrong_place_count + 1
             not_wrong_place_count = 0
             if wrong_place_count % 4 == 1:
-                mc.send_pwm(12,100)
-                mc.send_pwm(13,100)
+                mc.send_pwm(14,100)
+                mc.send_pwm(10,100)
             elif wrong_place_count % 4 == 3:
-                mc.send_pwm(12,0)
-                mc.send_pwm(13,0)                
+                mc.send_pwm(14,0)
+                mc.send_pwm(10,0)                
         else:
             not_wrong_place_count = not_wrong_place_count + 1
             if not_wrong_place_count == 1:
-                mc.send_pwm(12,0)
-                mc.send_pwm(13,0)   
+                mc.send_pwm(14,0)
+                mc.send_pwm(10,0)   
             wrong_place_count = 0
 
-        if deltax < 5 and not in_wrong_place(hand.center, wrong_goals):
-            draw_marker_direction3(color_arr,[center[0],center[1]], [hand.center[0],hand.center[1]])  #予測の方向の直線
-            draw_point(color_arr, hand.center[0], hand.center[1])
-            draw_point(color_arr, center[0], center[1])
-            distance = distance_from_line2((tools[0].pos),hand.center,center)
-            distance2 = distance_from_line2((tools[1].pos),hand.center,center)
-            if blackrubber_count % 2 == 0 and yellowtube_count % 2 == 0 and (blackrubber_count < 6 and yellowtube_count < 2 and 513 > hand.center[1]):
-                search_goal(line_in_goal(distance) or line_in_goal(distance2))
-            elif blackrubber_count % 2 == 0 and yellowtube_count % 2 == 0 and blackrubber_count < 6 and yellowtube_count == 2 and 513 > hand.center[1]:
-                search_goal(line_in_goal(distance))
-            elif blackrubber_count % 2 == 0 and yellowtube_count % 2 == 0 and blackrubber_count == 6 and yellowtube_count < 2 and 513 > hand.center[1]:
-                search_goal(line_in_goal(distance2))
-            elif (blackrubber_count % 2 == 1 or yellowtube_count % 2 == 1) and blackrubber_count < 6 and yellowtube_count < 2:
-                if in_black(hand.center) or in_yellow(hand.center):
-                    mc.send_pwm(13,100)
-                    mc.send_pwm(12,100)
+        if deltax < 5 and not in_wrong_place([x[0],x[3]], wrong_goals):      #前回ループから手の進んだ距離が5未満ならカルマンフィルタによる予測位置を使わない
+            draw_marker_direction3(color_arr,[xm1[0],xm1[3]], [x[0],x[3]])  #予測の方向の直線
+            draw_point(color_arr, x[0], x[3])    #予測なし手の重心描画
+            draw_point(color_arr, xm1[0], xm1[3])  #予測なしマーカーの重心描画
+            distance = distance_from_line2((tools[0].pos),[x[0],x[3]],[xm1[0],xm1[3]])   #正しいゴム足の棚の中心と手の方向を示す直線の距離
+            distance2 = distance_from_line2((tools[1].pos),[x[0],x[3]],[xm1[0],xm1[3]])   #正しいゴム足の棚の中心と手の方向を示す直線の距離
+            if blackrubber_count % 2 == 0 and yellowtube_count % 2 == 0 and (blackrubber_count < 6 and yellowtube_count < 2 and 513 > x[3]):  #部品を取るフェーズかつチューブもゴム足も残っているかつ手のy座標が部品を置く位置の外
+                search_goal(line_in_goal(distance) or line_in_goal(distance2))     #手の方向がどちらかの正しい部品の棚に入っているときに振動
+            elif blackrubber_count % 2 == 0 and yellowtube_count % 2 == 0 and blackrubber_count < 6 and yellowtube_count == 2 and 513 > x[3]:   #部品を取るフェーズかつゴム足はまだ残っているかつ手のy座標が部品を置く位置の外
+                search_goal(line_in_goal(distance))     #手の方向が正しいゴム足の棚に入っているときに振動
+            elif blackrubber_count % 2 == 0 and yellowtube_count % 2 == 0 and blackrubber_count == 6 and yellowtube_count < 2 and 513 > x[3]:    #部品を取るフェーズかつtチューブはまだ残っているかつ手のy座標が部品を置く位置の外
+                search_goal(line_in_goal(distance2))     #手の方向が正しいチューブの棚に入っているときに振動
+            elif (blackrubber_count % 2 == 1 or yellowtube_count % 2 == 1) and blackrubber_count < 6 and yellowtube_count < 2:     #手に取った部品を手前に持ってくるフェーズかつチューブもゴム足も残っている
+                if in_black([x[0],x[3]], blackrubber.h_min, blackrubber.h_max, blackrubber.w_min, blackrubber.w_max) or in_yellow([x[0],x[3]], yellowtube.h_min, yellowtube.h_max, yellowtube.w_min, yellowtube.w_max):   #正しい部品の棚に田が入っているとき連続的に振動
+                    mc.send_pwm(10,100)
+                    mc.send_pwm(14,100)
                 else:
-                    mc.send_pwm(13,0)
-                    mc.send_pwm(12,0)
-                search_object(dot_in_bar([hand.center[0],hand.center[1]]))
-            elif (blackrubber_count % 2 == 1 or yellowtube_count % 2 == 1) and blackrubber_count < 6 and yellowtube_count == 2:
-                if in_black(hand.center):
-                    mc.send_pwm(13,100)
-                    mc.send_pwm(12,100)
+                    mc.send_pwm(10,0)
+                    mc.send_pwm(14,0)
+                search_object(dot_in_bar([x[0],x[3]]))    #溝による振動
+            elif (blackrubber_count % 2 == 1 or yellowtube_count % 2 == 1) and blackrubber_count < 6 and yellowtube_count == 2:     #手に取った部品を手前に持ってくるフェーズかつゴム足が残っている
+                if in_black([x[0],x[3]], blackrubber.h_min, blackrubber.h_max, blackrubber.w_min, blackrubber.w_max):
+                    mc.send_pwm(10,100)
+                    mc.send_pwm(14,100)
                 else:
-                    mc.send_pwm(13,0)
-                    mc.send_pwm(12,0)
-                search_object(dot_in_bar([hand.center[0],hand.center[1]]))
-            elif (blackrubber_count % 2 == 1 or yellowtube_count % 2 == 1) and blackrubber_count == 6 and yellowtube_count < 2:
-                if in_yellow(hand.center):
-                    mc.send_pwm(13,100)
-                    mc.send_pwm(12,100)
+                    mc.send_pwm(10,0)
+                    mc.send_pwm(14,0)
+                search_object(dot_in_bar([x[0],x[3]]))
+            elif (blackrubber_count % 2 == 1 or yellowtube_count % 2 == 1) and blackrubber_count == 6 and yellowtube_count < 2:     #手に取った部品を手前に持ってくるフェーズかつチューブが残っている
+                if in_yellow([x[0],x[3]], yellowtube.h_min, yellowtube.h_max, yellowtube.w_min, yellowtube.w_max):
+                    mc.send_pwm(10,100)
+                    mc.send_pwm(14,100)
                 else:
-                    mc.send_pwm(13,0)
-                    mc.send_pwm(12,0)
-                search_object(dot_in_bar([hand.center[0],hand.center[1]]))
+                    mc.send_pwm(10,0)
+                    mc.send_pwm(14,0)
+                search_object(dot_in_bar([x[0],x[3]]))
             elif blackrubber_count == 6 and yellowtube_count == 2:
-                search_object(dot_in_line([hand.center[0],hand.center[1]]))
+                search_object(dot_in_line([x[0],x[3]]))
                     
             else:
-                mc.motor_right_forearm_stop()
-            #search_object(line_in_object2(object_polygon, [center[0],h_pred3_1[3]], [hand.center[0],h_pred3[3]]))
-            for i in [1,2,4,5]:
+                mc.send_pwm(0,0)
+
+            for i in [1,2,4,5]:   #手の移動速度が低い場合なので，移動距離が5未満のときはカルマンフィルタの速度，加速度成分は0に毎回更新している
                 x[i]  = 0
                 xm1[i] = 0
 
-        elif deltax >= 5 and not in_wrong_place(hand.center, wrong_goals):
+        elif deltax >= 5 and not in_wrong_place([x[0],x[3]], wrong_goals):      #カルマンフィルタによる予測座標を使う場合
             draw_prediction(color_arr,h_pred3) #予測場所を点で表示
             draw_prediction(color_arr,h_pred3_1)   #予測場所を点で表示
-            draw_marker_direction3(color_arr,[h_pred3_1[0],h_pred3_1[3]], [h_pred3[0],h_pred3[3]])
-            distance = distance_from_line2((tools[0].pos),[h_pred3_1[0],h_pred3_1[3]],[h_pred3[0],h_pred3[3]])
+            draw_marker_direction3(color_arr,[h_pred3_1[0],h_pred3_1[3]], [h_pred3[0],h_pred3[3]])    #予測した手の方向
+            distance = distance_from_line2((tools[0].pos),[h_pred3_1[0],h_pred3_1[3]],[h_pred3[0],h_pred3[3]])     #予測した手の方向と正しい棚の中心の距離
             distance2 = distance_from_line2((tools[1].pos),[h_pred3_1[0],h_pred3_1[3]],[h_pred3[0],h_pred3[3]])
-            if blackrubber_count % 2 == 0 and yellowtube_count % 2 == 0 and (blackrubber_count < 6 and yellowtube_count < 2 and 513 > hand.center[1]):
+            if blackrubber_count % 2 == 0 and yellowtube_count % 2 == 0 and (blackrubber_count < 6 and yellowtube_count < 2 and 513 > x[3]):
                 search_goal(line_in_goal(distance) or line_in_goal(distance2))
-            elif blackrubber_count % 2 == 0 and yellowtube_count % 2 == 0 and blackrubber_count < 6 and yellowtube_count == 2 and 513 > hand.center[1]:
+            elif blackrubber_count % 2 == 0 and yellowtube_count % 2 == 0 and blackrubber_count < 6 and yellowtube_count == 2 and 513 > x[3]:
                 search_goal(line_in_goal(distance))
-            elif blackrubber_count % 2 == 0 and yellowtube_count % 2 == 0 and blackrubber_count == 6 and yellowtube_count < 2 and 513 > hand.center[1]:
+            elif blackrubber_count % 2 == 0 and yellowtube_count % 2 == 0 and blackrubber_count == 6 and yellowtube_count < 2 and 513 > x[3]:
                 search_goal(line_in_goal(distance2))
             elif (blackrubber_count % 2 == 1 or yellowtube_count % 2 == 1) and blackrubber_count < 6 and yellowtube_count < 2:
-                if in_black(hand.center) or in_yellow(hand.center):
-                    mc.send_pwm(13,100)
-                    mc.send_pwm(12,100)
+                if in_black([x[0],x[3]], blackrubber.h_min, blackrubber.h_max, blackrubber.w_min, blackrubber.w_max) or in_yellow([x[0],x[3]], yellowtube.h_min, yellowtube.h_max, yellowtube.w_min, yellowtube.w_max):
+                    mc.send_pwm(10,100)
+                    mc.send_pwm(14,100)
                 else:
-                    mc.send_pwm(13,0)
-                    mc.send_pwm(12,0)
+                    mc.send_pwm(10,0)
+                    mc.send_pwm(14,0)
                 search_object(dot_in_bar([h_pred3[0],h_pred3[3]]))
             elif (blackrubber_count % 2 == 1 or yellowtube_count % 2 == 1) and blackrubber_count < 6 and yellowtube_count == 2:
-                if in_black(hand.center):
-                    mc.send_pwm(13,100)
-                    mc.send_pwm(12,100)
+                if in_black([x[0],x[3]], blackrubber.h_min, blackrubber.h_max, blackrubber.w_min, blackrubber.w_max):
+                    mc.send_pwm(10,100)
+                    mc.send_pwm(14,100)
                 else:
-                    mc.send_pwm(13,0)
-                    mc.send_pwm(12,0)
+                    mc.send_pwm(10,0)
+                    mc.send_pwm(14,0)
                 search_object(dot_in_bar([h_pred3[0],h_pred3[3]]))
             elif (blackrubber_count % 2 == 1 or yellowtube_count % 2 == 1) and blackrubber_count == 6 and yellowtube_count < 2:
-                if in_yellow(hand.center):
-                    mc.send_pwm(13,100)
-                    mc.send_pwm(12,100)
+                if in_yellow([x[0],x[3]], yellowtube.h_min, yellowtube.h_max, yellowtube.w_min, yellowtube.w_max):
+                    mc.send_pwm(10,100)
+                    mc.send_pwm(14,100)
                 else:
-                    mc.send_pwm(13,0)
-                    mc.send_pwm(12,0)
+                    mc.send_pwm(10,0)
+                    mc.send_pwm(14,0)
                 search_object(dot_in_bar([h_pred3[0],h_pred3[3]]))            
             elif blackrubber_count == 6 and yellowtube_count == 2:
                 search_object(dot_in_line([h_pred3[0],h_pred3[3]]))
             else:
-                mc.motor_right_forearm_stop()
+                mc.send_pwm(0,0)
                 
-            #search_object(line_in_object2(object_polygon, [h_pred3_1[0],h_pred3_1[3]], [h_pred3[0],h_pred3[3]]))
+
+        #以下は部品を何個取得しているか，取るフェーズなのか手前に持ってくるフェーズなのかを番号で管理　　
         
         if blackrubber_count % 2 == 0 and yellowtube_count % 2 == 0 and blackrubber_count < 6:
-            if in_black(hand.center):
+            if in_black([x[0],x[3]], blackrubber.h_min, blackrubber.h_max, blackrubber.w_min, blackrubber.w_max):
                 blackrubber_count = blackrubber_count + 1
         elif blackrubber_count % 2 == 1:
-            if out_black(hand.center):
+            if out_black([x[0],x[3]]):
                 blackrubber_count = blackrubber_count + 1
 
         if yellowtube_count % 2 == 0 and blackrubber_count % 2 == 0 and yellowtube_count < 2:
-            if in_yellow(hand.center):
+            if in_yellow([x[0],x[3]], yellowtube.h_min, yellowtube.h_max, yellowtube.w_min, yellowtube.w_max):
                 yellowtube_count = yellowtube_count + 1
         elif yellowtube_count % 2 == 1:
-            if out_yellow(hand.center):
+            if out_yellow([x[0],x[3]]):
                 yellowtube_count = yellowtube_count + 1
 
-        print(blackrubber_count, yellowtube_count)
+        if blackrubber_count == 6 and yellowtube_count == 2 :
+            # finish()
+            break
+
+
+        # print(blackrubber_count, yellowtube_count)     #0 0から始まり，手が正しい黒ゴムの棚に入ると1 0その後手前に手を持ってくると2 0最終的にすべて手前に集めると6 2になる
         
-        draw_time = draw_hand(color_arr, hand)
-        delta_t = draw_time - previous_time
-        #print(delta_t)
-        previous_time = draw_time
+        draw_hand2(color_arr, x, hand)
         draw_goals(color_arr)
+
         flag = draw(color_arr)
-        #print(np_hand2)
-        #print(np_hand2[0])
-        # a = np.squeeze(np_hand)
-        #print(a[:,0])
-        # print(np_hand)
-    out.release()
 
-    mc.valve(0,0)
-    mc.valve(1,0)
-    mc.valve(2,0)
-    mc.comp_stop()
-    mc.allmotor_stop()
+    
+    finish()
+    
+    # out.release()
 
-    traj = np.array(trajectory.trajectory)
-    #print(traj)
-    directory_path = "/home/toyoshima/script/hand_detection/exp_module/traj_time"
-    file_name = f"traj_time_{now.strftime('%Y%m%d_%H%M%S')}.npy"
-    full_path = os.path.join(directory_path, file_name)
-    np.save(full_path, traj)
+    # mc.valve(0,0)
+    # mc.valve(1,0)
+    # mc.valve(2,0)
+    # mc.comp_stop()
+    # mc.allmotor_stop()
+
+    # traj = np.array(trajectory.trajectory)
+    # #print(traj)
+
+    # np.save(full_path, traj)
 
 # def check_input():
 #     global frag
@@ -464,7 +461,7 @@ def finish():
     mc.allmotor_stop()
 
 
-def draw_hand(color_arr, hand):
+def draw_hand2(color_arr, x, hand):  
     cv2.drawContours(      #緑で手の輪郭を描画
         color_arr,
         hand.contour,
@@ -473,7 +470,7 @@ def draw_hand(color_arr, hand):
 
     cv2.circle(            #緑で手の重心を描画
         color_arr,
-        (int(hand.center[0]), int(hand.center[1])),
+        (int(x[0]), int(x[3])),
         10,
         color=(0, 255, 0),
         thickness=-1
@@ -731,8 +728,7 @@ def search_goal(zeroone):
         mc.send_pwm(0,0)
 
 
-def in_black(pos):      #手が正しいゴム足の棚に入っているかを判定
-    h_min, h_max, w_min, w_max = blackrubber.h_min, blackrubber.h_max, blackrubber.w_min, blackrubber.w_max
+def in_black(pos, h_min, h_max, w_min, w_max):      #手が正しいゴム足の棚に入っているかを判定
     if w_min < pos[0] < w_max and h_min < pos[1] < h_max:
         return True
 
@@ -740,8 +736,7 @@ def out_black(pos, h_min=513, h_max=612):      #手が手前(部品を置く場�
     if h_min < pos[1] < h_max:
         return True
 
-def in_yellow(pos):      #手が正しいチューブの棚に入っているかを判定
-    h_min, h_max, w_min, w_max = yellowtube.h_min, yellowtube.h_max, yellowtube.w_min, yellowtube.w_max
+def in_yellow(pos, h_min, h_max, w_min, w_max):      #手が正しいチューブの棚に入っているかを判定
     if w_min < pos[0] < w_max and h_min < pos[1] < h_max:
         return True
 
