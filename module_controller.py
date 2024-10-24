@@ -11,7 +11,7 @@ class ModuleController:
         self.allmotor_stop()
 
     def initialize(self):
-        self.arduino = arduino.Arduino("/dev/ttyUSB0")
+        self.arduino = arduino.Arduino("/dev/cu.usbserial-DP04WZX6")
 
     # hand_pos and goal_pos is in [0.0, 0.0] ~ [1.0, 1.0]  正規化している
     def drive(self, hand_pos, goal_pos):

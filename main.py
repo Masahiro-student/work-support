@@ -141,7 +141,9 @@ class State:   #使ってない
 
 
 def load_mask():   #カメラの画角のうち画像認識するのは緑の作業台だけでいいのでそこ以外を切り取るため(画像(mask.png)を使ってやる方法)
-    mask = Image.open("/home/toyoshima/script/hand_detection/mask.png")
+    #  mask = Image.open("/home/toyoshima/script/hand_detection/mask.png")
+    # 代わりに(1280, 720)の真っ白な画像を作成
+    mask = np.ones((720, 1280))
     # mask = Image.open("mask.png")
     return np.asarray(mask)
 
@@ -166,16 +168,16 @@ def load_threshold_m():
     return Marker.load_hs_threshold("marker_threshold")   #上のマーカー版
 
 
-def realsense_color():
-    realsense = RealSense()
-    def get_color():
-        realsense.update()
-        return realsense.color_arr
+#  def realsense_color():
+#      realsense = RealSense()
+#      def get_color():
+#          realsense.update()
+#          return realsense.color_arr
 
-    return get_color
+#      return get_color
 
 
-get_color_arr = realsense_color()           
+#  get_color_arr = realsense_color()           
 
 def search_object(in_out):   #溝振動用
     if in_out == 1:
@@ -190,24 +192,27 @@ def toward_tool(start_time, count):
     global out
     now = datetime.datetime.now()
 
+    RS = RealSense()
+
     tar_name = 'sawada'  #被験者の名前を入れる
-    base_dir = f'/home/toyoshima/script/hand_detection/exp_module/{tar_name}'
-    directory_path_v = os.path.join(base_dir, 'movie')
-    directory_path = os.path.join(base_dir, "traj_time")
+    #  base_dir = f'/home/toyoshima/script/hand_detection/exp_module/{tar_name}'
+    
+    #  directory_path_v = os.path.join(base_dir, 'movie')
+    #  directory_path = os.path.join(base_dir, "traj_time")
 
-    os.makedirs(base_dir, exist_ok=True)
-    os.makedirs(directory_path, exist_ok=True)
-    os.makedirs(directory_path_v, exist_ok=True)
+    #  os.makedirs(base_dir, exist_ok=True)
+    #  os.makedirs(directory_path, exist_ok=True)
+    #  os.makedirs(directory_path_v, exist_ok=True)
 
-    dir_length = len(glob(os.path.join(directory_path_v, '*')))
-    file_name = f"traj_time_{now.strftime('%Y%m%d_%H%M%S')}_{dir_length}.npy"
-    full_path = os.path.join(directory_path, file_name)
+    #  dir_length = len(glob(os.path.join(directory_path_v, '*')))
+    #  file_name = f"traj_time_{now.strftime('%Y%m%d_%H%M%S')}_{dir_length}.npy"
+    #  full_path = os.path.join(directory_path, file_name)
 
-    file_name_v = f"movie_{now.strftime('%Y%m%d_%H%M%S')}_{dir_length}.mp4"
-    full_path_v = os.path.join(directory_path_v, file_name_v)
+    #  file_name_v = f"movie_{now.strftime('%Y%m%d_%H%M%S')}_{dir_length}.mp4"
+    #  full_path_v = os.path.join(directory_path_v, file_name_v)
     #output_file = "output_video.mp4"
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(full_path_v, fourcc, fps, (frame_width, frame_height), True)
+    #  fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    #  out = cv2.VideoWriter(full_path_v, fourcc, fps, (frame_width, frame_height), True)
 
     #上は動画と手の軌跡を保存している
     global blackrubber, yellowtube
@@ -248,10 +253,15 @@ def toward_tool(start_time, count):
     pre_t = 0
     previous_time = time.time()
     while flag:
-        color_arr = get_color_arr()  #realsenseから色情報（配列）を取得
+        #  color_arr = get_color_arr()  #realsenseから色情報（配列）を取得
+        RS.update()
+        color_arr = RS.color_image
         t1 = time.time()
-        frame = color_arr[:, :, :3]
-        out.write(frame)
+        if color_arr.shape == ():
+            print(color_arr.shape)
+            continue
+
+        #  out.write(frame)
 
         hand.update(color_arr)
         marker.update(color_arr)
@@ -426,7 +436,7 @@ def toward_tool(start_time, count):
         # a = np.squeeze(np_hand)
         #print(a[:,0])
         # print(np_hand)
-    out.release()
+    #  out.release()
 
     mc.valve(0,0)
     mc.valve(1,0)
@@ -434,12 +444,13 @@ def toward_tool(start_time, count):
     mc.comp_stop()
     mc.allmotor_stop()
 
-    traj = np.array(trajectory.trajectory)
+    #  traj = np.array(trajectory.trajectory)
     #print(traj)
-    directory_path = "/home/toyoshima/script/hand_detection/exp_module/traj_time"
-    file_name = f"traj_time_{now.strftime('%Y%m%d_%H%M%S')}.npy"
-    full_path = os.path.join(directory_path, file_name)
-    np.save(full_path, traj)
+    #  directory_path = "/home/toyoshima/script/hand_detection/exp_module/traj_time"
+    
+    #  file_name = f"traj_time_{now.strftime('%Y%m%d_%H%M%S')}.npy"
+    #  full_path = os.path.join(directory_path, file_name)
+    #  np.save(full_path, traj)
 
 # def check_input():
 #     global frag
@@ -455,7 +466,7 @@ def toward_tool(start_time, count):
 
 def finish():
     now = datetime.datetime.now()
-    np.savetxt('exp_data/data' + now.strftime('%Y%m%d_%H%M%S') + '.csv', data)
+    #  np.savetxt('exp_data/data' + now.strftime('%Y%m%d_%H%M%S') + '.csv', data)
     out.release()
     mc.valve(0,0)
     mc.valve(1,0)

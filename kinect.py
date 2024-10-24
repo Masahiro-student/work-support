@@ -100,7 +100,7 @@ class Kinect:
 
     def update_frame(self):
         # capture frame
-        self.capture = self.device.get_capture(-1)   #デバイスから最新のフレームを取得
+        self.frame = self.pipeline.get_capture(-1)   #デバイスから最新のフレームを取得
         if self.capture is None:
             raise IOError("failed getting capture!")
 
