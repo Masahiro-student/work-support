@@ -4,7 +4,6 @@ import os
 
 class Hand:
     def __init__(self, min_th, max_th, mask):
-        self.V_THRESHOLD = 40
         self.min_th = min_th
         self.max_th = max_th
         self.mask = mask
@@ -56,12 +55,10 @@ class Hand:
         value_arr = hsv_arr[:, :, 2]
         hue_min, hue_max = min_th[0], max_th[0]
         saturation_min, saturation_max = min_th[1], max_th[1]
+        value_min, value_max = min_th[2], max_th[2]
         h_meet = np.logical_and(hue_min <= hue_arr, hue_arr <= hue_max)
-        s_meet = np.logical_and(
-            saturation_min <= saturation_arr, saturation_arr <= saturation_max
-        )
-        # 明度が低いところは除外
-        v_meet = np.where(self.V_THRESHOLD <= value_arr, True, False)
+        s_meet = np.logical_and(saturation_min <= saturation_arr, saturation_arr <= saturation_max)
+        v_meet = np.logical_and(value_min <= value_arr, value_arr <= value_max)
         is_hand_area = np.logical_and(np.logical_and(h_meet, s_meet), v_meet)
         # is_hand_area = np.logical_and(h_meet, s_meet)
         # 手領域か否かの条件を適用
@@ -119,8 +116,8 @@ class Hand:
 
     def load_hs_threshold(threshold_file="background_threshold"):
         threshold_arr = np.loadtxt(f"{os.path.dirname(__file__)}/threshold_file/{threshold_file}.txt")
-        if threshold_arr.shape != (2, 2):
-            raise Exception(f"threshold file has invalid data shape {threshold_arr.shape}")
+        # if threshold_arr.shape != (2, 2):
+        #     raise Exception(f"threshold file has invalid data shape {threshold_arr.shape}")
         min_threshold = tuple(threshold_arr[0])
         max_threshold = tuple(threshold_arr[1])
         return min_threshold, max_threshold
