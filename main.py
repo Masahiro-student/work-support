@@ -14,7 +14,7 @@ import datetime
 import csv
 import random
 from PIL import Image
-from kinect import Kinect
+from realsense import RealSense
 from hand import Hand
 from marker import Marker
 from module_controller import ModuleController 
@@ -166,16 +166,16 @@ def load_threshold_m():
     return Marker.load_hs_threshold("marker_threshold")   #上のマーカー版
 
 
-def kinect_color():
-    kinect = Kinect()
+def realsense_color():
+    realsense = RealSense()
     def get_color():
-        kinect.update()
-        return kinect.color_arr
+        realsense.update()
+        return realsense.color_arr
 
     return get_color
 
 
-get_color_arr = kinect_color()           
+get_color_arr = realsense_color()           
 
 def search_object(in_out):   #溝振動用
     if in_out == 1:
@@ -192,7 +192,7 @@ def toward_tool(start_time, count):
 
     tar_name = 'sawada'  #被験者の名前を入れる
     base_dir = f'/home/toyoshima/script/hand_detection/exp_module/{tar_name}'
-    directory_path_v = os.path.join(base_dir, 'kinect_movie')
+    directory_path_v = os.path.join(base_dir, 'movie')
     directory_path = os.path.join(base_dir, "traj_time")
 
     os.makedirs(base_dir, exist_ok=True)
@@ -203,7 +203,7 @@ def toward_tool(start_time, count):
     file_name = f"traj_time_{now.strftime('%Y%m%d_%H%M%S')}_{dir_length}.npy"
     full_path = os.path.join(directory_path, file_name)
 
-    file_name_v = f"kinect_movie_{now.strftime('%Y%m%d_%H%M%S')}_{dir_length}.mp4"
+    file_name_v = f"movie_{now.strftime('%Y%m%d_%H%M%S')}_{dir_length}.mp4"
     full_path_v = os.path.join(directory_path_v, file_name_v)
     #output_file = "output_video.mp4"
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
@@ -248,7 +248,7 @@ def toward_tool(start_time, count):
     pre_t = 0
     previous_time = time.time()
     while flag:
-        color_arr = get_color_arr()  #kinectから色情報（配列）を取得
+        color_arr = get_color_arr()  #realsenseから色情報（配列）を取得
         t1 = time.time()
         frame = color_arr[:, :, :3]
         out.write(frame)
