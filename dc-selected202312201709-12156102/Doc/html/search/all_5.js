@@ -1,0 +1,26 @@
+var searchData=
+[
+  ['max_5fduty_0',['Max_Duty',['../d6/da6/_m_i_r2-13_w_8ino.html#aaf0aebe75b91ea417e32bb392e4b92f9',1,'MIR2-13W.ino']]],
+  ['max_5fpresser_1',['Max_Presser',['../d6/da6/_m_i_r2-13_w_8ino.html#abb04eb8789f7d2e08c32531558b005e9',1,'MIR2-13W.ino']]],
+  ['min_5fpresser_2',['Min_Presser',['../d6/da6/_m_i_r2-13_w_8ino.html#a788eef343275faf6488b4563baf35d8e',1,'MIR2-13W.ino']]],
+  ['mir2_2d13w_2eino_3',['MIR2-13W.ino',['../d6/da6/_m_i_r2-13_w_8ino.html',1,'']]],
+  ['motor_5fa_4',['Motor_A',['../d6/da6/_m_i_r2-13_w_8ino.html#a257348a08be911ec626ef15ada498bb3',1,'MIR2-13W.ino']]],
+  ['motor_5fb_5',['Motor_B',['../d6/da6/_m_i_r2-13_w_8ino.html#a344a6da8b55f3f1a000f156b16eb6382',1,'MIR2-13W.ino']]],
+  ['motor_5fc_6',['Motor_C',['../d6/da6/_m_i_r2-13_w_8ino.html#ad3be394d8c937b2ec140979f7374f1a2',1,'MIR2-13W.ino']]],
+  ['motor_5fd_7',['Motor_D',['../d6/da6/_m_i_r2-13_w_8ino.html#a12ede97c36a22a1de5dfe6e7278b7f3e',1,'MIR2-13W.ino']]],
+  ['motor_5fe_8',['Motor_E',['../d6/da6/_m_i_r2-13_w_8ino.html#ab16f0ea3910a2135a5d8c51066466f6d',1,'MIR2-13W.ino']]],
+  ['motor_5ff_9',['Motor_F',['../d6/da6/_m_i_r2-13_w_8ino.html#a675d4c630ce9a023e42d8c90e26348cd',1,'MIR2-13W.ino']]],
+  ['motor_5fg_10',['Motor_G',['../d6/da6/_m_i_r2-13_w_8ino.html#a41f7bb4441fa59ec9d1f5715af48a1c7',1,'MIR2-13W.ino']]],
+  ['motor_5fh_11',['Motor_H',['../d6/da6/_m_i_r2-13_w_8ino.html#a703b19f0685f395b3245307d738ca61e',1,'MIR2-13W.ino']]],
+  ['motor_5fi_12',['Motor_I',['../d6/da6/_m_i_r2-13_w_8ino.html#a3bb0acf4f4fa3e1fbc60c658b6eb9297',1,'MIR2-13W.ino']]],
+  ['motor_5fj_13',['Motor_J',['../d6/da6/_m_i_r2-13_w_8ino.html#a3fe9e521a5425e26699b84ec124c9d56',1,'MIR2-13W.ino']]],
+  ['motor_5fk_14',['Motor_K',['../d6/da6/_m_i_r2-13_w_8ino.html#a889d786055b7fde18987eb43bb1cb5f5',1,'MIR2-13W.ino']]],
+  ['motor_5fl_15',['Motor_L',['../d6/da6/_m_i_r2-13_w_8ino.html#a39c15aabe8586da97f5b7289241eaa6c',1,'MIR2-13W.ino']]],
+  ['motor_5fm_16',['Motor_M',['../d6/da6/_m_i_r2-13_w_8ino.html#a79141c944c45e09a49bf11b9cade4147',1,'MIR2-13W.ino']]],
+  ['motor_5fn_17',['Motor_N',['../d6/da6/_m_i_r2-13_w_8ino.html#a325463acea70f242030e080b0a16dd97',1,'MIR2-13W.ino']]],
+  ['motor_5fnum_18',['motor_num',['../d6/da6/_m_i_r2-13_w_8ino.html#ac1da510a6193bdc158e20ea9c1e0772c',1,'MIR2-13W.ino']]],
+  ['motor_5fo_19',['Motor_O',['../d6/da6/_m_i_r2-13_w_8ino.html#ad3b25f8ffd564e6aad23b8675b5dcff7',1,'MIR2-13W.ino']]],
+  ['motor_5fp_20',['Motor_P',['../d6/da6/_m_i_r2-13_w_8ino.html#ad7660b13bd081e95e7ed4156f4929a57',1,'MIR2-13W.ino']]],
+  ['motor_5fperiod_21',['motor_period',['../d6/da6/_m_i_r2-13_w_8ino.html#a5421905bc98420b924c60b81aadcbaec',1,'MIR2-13W.ino']]],
+  ['motor_5fstate_22',['motor_state',['../d6/da6/_m_i_r2-13_w_8ino.html#a38b64b41194bb3b825c0e099a83e06f3',1,'MIR2-13W.ino']]]
+];
