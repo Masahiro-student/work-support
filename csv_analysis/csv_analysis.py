@@ -81,5 +81,5 @@ def main():
     plt.plot_speed(t, speed, save_speed_path)
     plt.plot_acceleration(t, acceleration, save_acceleration_path)
 
-if __name__ == "__main__":
+if __name__ == "__csv_analysis__":
     main()

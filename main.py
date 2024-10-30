@@ -13,12 +13,12 @@ import datetime
 import csv
 import random
 from PIL import Image
-from kinect import Kinect
+# from kinect import Kinect
 from hand import Hand
 from marker import Marker
 from module_controller import ModuleController 
 from trajectory import Trajectory
-from goal import Goal
+from shelves import Shelves
 import kalmanfilter as klf
 import math
 import random
@@ -99,8 +99,8 @@ else:
     true_index = 1
     wrong_index = 0
 
-tools.append(Goal(centers[true_index][0], centers[true_index][1], radius, heights[true_index], widths[true_index])) # black
-wrong_tools.append(Goal(centers[wrong_index][0], centers[wrong_index][1], radius, heights[wrong_index], widths[wrong_index])) # wrong black
+tools.append(Shelves(centers[true_index][0], centers[true_index][1], radius, heights[true_index], widths[true_index])) # black
+wrong_tools.append(Shelves(centers[wrong_index][0], centers[wrong_index][1], radius, heights[wrong_index], widths[wrong_index])) # wrong black
 
 # yellowチューブの2つの棚をランダムに1つを正解の棚にもう1つを間違いの棚にする
 if random.randint(0, 1) == 0:
@@ -110,27 +110,27 @@ else:
     true_index = 3
     wrong_index = 2
 
-tools.append(Goal(centers[true_index][0], centers[true_index][1], radius, heights[true_index], widths[true_index])) # yellow
-wrong_tools.append(Goal(centers[wrong_index][0], centers[wrong_index][1], radius, heights[wrong_index], widths[wrong_index])) # wrong yellow
+tools.append(Shelves(centers[true_index][0], centers[true_index][1], radius, heights[true_index], widths[true_index])) # yellow
+wrong_tools.append(Shelves(centers[wrong_index][0], centers[wrong_index][1], radius, heights[wrong_index], widths[wrong_index])) # wrong yellow
 
 # # 正解の棚を固定する．どちらも左側が正解の棚
-# tools.extend([Goal(centers[0][0], centers[0][1], radius, heights[0], widths[0]), Goal(centers[2][0], centers[2][1], radius, heights[2], widths[2])])
-# wrong_tools.extend([Goal(centers[1][0], centers[1][1], radius, heights[1], widths[1]), Goal(centers[3][0], centers[3][1], radius, heights[3], widths[3])])
+# tools.extend([Shelves(centers[0][0], centers[0][1], radius, heights[0], widths[0]), Shelves(centers[2][0], centers[2][1], radius, heights[2], widths[2])])
+# wrong_tools.extend([Shelves(centers[1][0], centers[1][1], radius, heights[1], widths[1]), Shelves(centers[3][0], centers[3][1], radius, heights[3], widths[3])])
 
 
-class State:   #使ってない
-    assem = None
-    target = None
+# class State:   #使ってない
+#     assem = None
+#     target = None
     
-    def __init__(self, assem, target):
-        self.assem = assem
-        self.target = target
+#     def __init__(self, assem, target):
+#         self.assem = assem
+#         self.target = target
 
 
-def load_mask():   #カメラの画角のうち画像認識するのは緑の作業台だけでいいのでそこ以外を切り取るため(画像(mask.png)を使ってやる方法)
-    mask = Image.open("/home/toyoshima/script/hand_detection/mask.png")
-    # mask = Image.open("mask.png")
-    return np.asarray(mask)
+# def load_mask():   #カメラの画角のうち画像認識するのは緑の作業台だけでいいのでそこ以外を切り取るため(画像(mask.png)を使ってやる方法)
+#     mask = Image.open("/home/toyoshima/script/hand_detection/mask.png")
+#     # mask = Image.open("mask.png")
+#     return np.asarray(mask)
 
 def load_mask_hand():     #同上(具体的に座標を与えて切り取るやり方)ピンクの手袋用
     mask = np.zeros((720,1280))
@@ -238,7 +238,9 @@ def toward_tool():
     wrong_place_count = 0
     not_wrong_place_count = 0
     while flag:
+        
         color_arr = get_color_arr()  #kinectから色情報（配列）を取得
+        
         
 
         hand.update(color_arr)

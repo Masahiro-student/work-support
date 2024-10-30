@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 
-class Goal:    #4つの棚に配置する丸(正しい部品があるときに丸を表示)
+class Shelves:    #4つの棚に配置する丸(正しい部品があるときに丸を表示)
     pos = None
     radius = None
 

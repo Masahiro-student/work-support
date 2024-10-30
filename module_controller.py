@@ -6,7 +6,6 @@ class ModuleController:
 
     def __init__(self):
         self.initialize()
-
     def __del__(self):
         self.allmotor_stop()
 
