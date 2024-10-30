@@ -1,4 +1,5 @@
 import numpy as np
+import time
 import cv2
 import os
 
@@ -126,3 +127,20 @@ class Hand:
         min_threshold = tuple(threshold_arr[0])
         max_threshold = tuple(threshold_arr[1])
         return min_threshold, max_threshold
+    
+    
+def draw_hand(color_arr, x, hand):  
+    cv2.drawContours(      #緑で手の輪郭を描画
+        color_arr,
+        hand.contour,
+        -1,
+        color=(0, 255, 0))
+
+    cv2.circle(            #緑で手の重心を描画
+        color_arr,
+        (int(x[0]), int(x[3])),
+        10,
+        color=(0, 255, 0),
+        thickness=-1
+        )
+    return time.time()

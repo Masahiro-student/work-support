@@ -13,7 +13,7 @@ import datetime
 import csv
 import random
 from PIL import Image
-# from kinect import Kinect
+from kinect import Kinect
 from hand import Hand
 from marker import Marker
 from module_controller import ModuleController 
@@ -47,49 +47,20 @@ fps = float(11)
 last_time = time.time()
 data = []
 mc = ModuleController()
-
-
-#以下仮想的な振動する溝　縦がline横線がbar
-line1_pt1 = (401, 170)
-line1_pt2 = (421, 620)
-line1_polygon = np.array([[401, 170], [401, 620], [421, 170], [421, 620]])
-line2_pt1 = (527, 170)
-line2_pt2 = (547, 620)
-line2_polygon = np.array([[527, 170], [527, 620], [547, 170], [547, 620]])
-line3_pt1 = (653, 170)
-line3_pt2 = (673, 620)
-line3_polygon = np.array([[653, 170], [653, 620], [673, 170], [673, 620]])
-line4_pt1 = (779, 170)
-line4_pt2 = (799, 620)
-line4_polygon = np.array([[779, 170], [779, 620], [799, 170], [799, 620]])
-bar1_pt1 = (279, 273)
-bar1_pt2 = (922, 293)
-bar1_polygon = np.array([[279, 273], [922, 293], [799, 273], [922, 293]])
-bar2_pt1 = (279, 383)
-bar2_pt2 = (922, 403)
-bar2_polygon = np.array([[279, 383], [922, 403], [799, 383], [922, 403]])
-bar3_pt1 = (279, 493)
-bar3_pt2 = (922, 513)
-bar3_polygon = np.array([[279, 493], [922, 513], [799, 493], [922, 513]])
     
 
-#テーブル(作業場所)や棚の座標をロードする関数
+#テーブル(作業場所)や棚の座標など固定する物体の座標をロードする関数
 def load_coordinates(file_name):
     file_path = os.path.join(os.path.dirname(__file__), "coordinates_file", f"{file_name}.txt")
     coordinates_arr = np.loadtxt(file_path)
     return coordinates_arr
 
 
-
-
-tools = []    #正しい部品がある棚を格納
-wrong_tools = []  #間違った部品がある棚を格納
-
 shelves_coordinates= load_coordinates("shelves_coordinates")
 
-heights = shelves_coordinates[:, 2]   # 棚の高さ
-widths = shelves_coordinates[:, 3]    # 棚の横幅
-centers = shelves_coordinates[:, 0:2].astype(int)  # 各棚の中心 (x, y)
+
+right_shelevs = []   #正しい部品がある棚を格納
+wrong_shelves = []  #間違った部品がある棚を格納
 
 # blackゴム足の2つの棚をランダムに1つを正解の棚にもう1つを間違いの棚にする
 if random.randint(0, 1) == 0:
@@ -99,8 +70,8 @@ else:
     true_index = 1
     wrong_index = 0
 
-tools.append(Shelves(centers[true_index][0], centers[true_index][1], radius, heights[true_index], widths[true_index])) # black
-wrong_tools.append(Shelves(centers[wrong_index][0], centers[wrong_index][1], radius, heights[wrong_index], widths[wrong_index])) # wrong black
+right_shelevs.append(Shelves(shelves_coordinates[true_index][:2], shelves_coordinates[true_index][2:])) # black
+wrong_shelves.append(Shelves(shelves_coordinates[wrong_index][:2], shelves_coordinates[wrong_index][2:])) # wrong black
 
 # yellowチューブの2つの棚をランダムに1つを正解の棚にもう1つを間違いの棚にする
 if random.randint(0, 1) == 0:
@@ -110,21 +81,19 @@ else:
     true_index = 3
     wrong_index = 2
 
-tools.append(Shelves(centers[true_index][0], centers[true_index][1], radius, heights[true_index], widths[true_index])) # yellow
-wrong_tools.append(Shelves(centers[wrong_index][0], centers[wrong_index][1], radius, heights[wrong_index], widths[wrong_index])) # wrong yellow
+right_shelevs.append(Shelves(shelves_coordinates[true_index][:2], shelves_coordinates[true_index][1])) # yellow
+wrong_shelves.append(Shelves(shelves_coordinates[wrong_index][:2], shelves_coordinates[wrong_index][1])) # wrong yellow
 
 # # 正解の棚を固定する．どちらも左側が正解の棚
-# tools.extend([Shelves(centers[0][0], centers[0][1], radius, heights[0], widths[0]), Shelves(centers[2][0], centers[2][1], radius, heights[2], widths[2])])
-# wrong_tools.extend([Shelves(centers[1][0], centers[1][1], radius, heights[1], widths[1]), Shelves(centers[3][0], centers[3][1], radius, heights[3], widths[3])])
+# right_shelevs.extend([Shelves(shelves_coordinates[0][0], shelves_coordinates[0][1], radius, shelves_heights[0], shelves_widths[0]), Shelves(shelves_coordinates[2][0], shelves_coordinates[2][1], radius, shelves_heights[2], shelves_widths[2])])
+# wrong_shelves.extend([Shelves(shelves_coordinates[1][0], shelves_coordinates[1][1], radius, shelves_heights[1], shelves_widths[1]), Shelves(shelves_coordinates[3][0], shelves_coordinates[3][1], radius, shelves_heights[3], shelves_widths[3])])
+
+bar_coordinates = load_coordinates("bar_coordinates")
+line_coordinates = load_coordinates("line_coordinates")
+table_coordinates = load_coordinates("table_coordinates")
 
 
-# class State:   #使ってない
-#     assem = None
-#     target = None
-    
-#     def __init__(self, assem, target):
-#         self.assem = assem
-#         self.target = target
+
 
 
 # def load_mask():   #カメラの画角のうち画像認識するのは緑の作業台だけでいいのでそこ以外を切り取るため(画像(mask.png)を使ってやる方法)
@@ -206,9 +175,9 @@ def toward_tool():
 
     #上は動画と手の軌跡を保存している
     
-    blackrubber = tools[0]
-    yellowtube = tools[1]
-    wrong_goals = wrong_tools
+    blackrubber = right_shelevs[0]
+    yellowtube = right_shelevs[1]
+    wrong_goals = wrong_shelves
 
     flag = True
     blackrubber_count = 0    #正しいゴム足の棚に手を入れると+1,その後作業台手前に手が入ると+1   (偶数で部品を手に取ろうとしている段階，奇数で部品を手にとって手前に戻す段階)
@@ -240,8 +209,6 @@ def toward_tool():
     while flag:
         
         color_arr = get_color_arr()  #kinectから色情報（配列）を取得
-        
-        
 
         hand.update(color_arr)
         marker.update(color_arr)
@@ -258,12 +225,12 @@ def toward_tool():
 
         
         draw_marker(color_arr, xm1, marker)     #予測なしマーカー描画
-        draw_marker_direction(color_arr,[xm1[0],xm1[3]], [x[0],x[3]])  #予測なし手の方向描画
+        draw_marker_direction3(color_arr,[xm1[0],xm1[3]], [x[0],x[3]])  #予測なし手の方向描画
         
-        draw_imaginary_object(color_arr, shelves_coordinates)   #棚を四角で区切る
-        draw_imaginary_line(color_arr, bar1_pt1, bar1_pt2)    #横溝3本
-        draw_imaginary_line(color_arr, bar2_pt1, bar2_pt2)
-        draw_imaginary_line(color_arr, bar3_pt1, bar3_pt2)
+        draw_imaginary_rectangle(color_arr, shelves_coordinates)   #棚を四角で区切る
+        draw_imaginary_rectangle(color_arr, bar_coordinates[0][:2], bar_coordinates[0][2:4], (255, 0, 0))    #横溝3本
+        draw_imaginary_rectangle(color_arr, bar_coordinates[1][:2], bar_coordinates[1][2:4], (255, 0, 0))
+        draw_imaginary_rectangle(color_arr, bar_coordinates[2][:2], bar_coordinates[2][2:4], (255, 0, 0))
         
 
         '''これ以降の条件分岐は部品を4つ習得するフェーズにおいて,部品を棚に取りに行くときには手の方向と正しい棚が交わったときにモータ0が振動,手が正しい棚に入ったときに
@@ -301,8 +268,8 @@ def toward_tool():
             draw_marker_direction3(color_arr,[xm1[0],xm1[3]], [x[0],x[3]])  #予測の方向の直線
             draw_point(color_arr, x[0], x[3])    #予測なし手の重心描画
             draw_point(color_arr, xm1[0], xm1[3])  #予測なしマーカーの重心描画
-            distance = distance_from_line2((tools[0].pos),[x[0],x[3]],[xm1[0],xm1[3]])   #正しいゴム足の棚の中心と手の方向を示す直線の距離
-            distance2 = distance_from_line2((tools[1].pos),[x[0],x[3]],[xm1[0],xm1[3]])   #正しいゴム足の棚の中心と手の方向を示す直線の距離
+            distance = distance_from_line2((right_shelevs[0].center),[x[0],x[3]],[xm1[0],xm1[3]])   #正しいゴム足の棚の中心と手の方向を示す直線の距離
+            distance2 = distance_from_line2((right_shelevs[1].center),[x[0],x[3]],[xm1[0],xm1[3]])   #正しいゴム足の棚の中心と手の方向を示す直線の距離
             if blackrubber_count % 2 == 0 and yellowtube_count % 2 == 0 and (blackrubber_count < 6 and yellowtube_count < 2 and 513 > x[3]):  #部品を取るフェーズかつチューブもゴム足も残っているかつ手のy座標が部品を置く位置の外
                 search_goal(line_in_goal(distance) or line_in_goal(distance2))     #手の方向がどちらかの正しい部品の棚に入っているときに振動
             elif blackrubber_count % 2 == 0 and yellowtube_count % 2 == 0 and blackrubber_count < 6 and yellowtube_count == 2 and 513 > x[3]:   #部品を取るフェーズかつゴム足はまだ残っているかつ手のy座標が部品を置く位置の外
@@ -347,8 +314,8 @@ def toward_tool():
             draw_prediction(color_arr,h_pred3) #予測場所を点で表示
             draw_prediction(color_arr,h_pred3_1)   #予測場所を点で表示
             draw_marker_direction3(color_arr,[h_pred3_1[0],h_pred3_1[3]], [h_pred3[0],h_pred3[3]])    #予測した手の方向
-            distance = distance_from_line2((tools[0].pos),[h_pred3_1[0],h_pred3_1[3]],[h_pred3[0],h_pred3[3]])     #予測した手の方向と正しい棚の中心の距離
-            distance2 = distance_from_line2((tools[1].pos),[h_pred3_1[0],h_pred3_1[3]],[h_pred3[0],h_pred3[3]])
+            distance = distance_from_line2((right_shelevs[0].center),[h_pred3_1[0],h_pred3_1[3]],[h_pred3[0],h_pred3[3]])     #予測した手の方向と正しい棚の中心の距離
+            distance2 = distance_from_line2((right_shelevs[1].center),[h_pred3_1[0],h_pred3_1[3]],[h_pred3[0],h_pred3[3]])
             if blackrubber_count % 2 == 0 and yellowtube_count % 2 == 0 and (blackrubber_count < 6 and yellowtube_count < 2 and 513 > x[3]):
                 search_goal(line_in_goal(distance) or line_in_goal(distance2))
             elif blackrubber_count % 2 == 0 and yellowtube_count % 2 == 0 and blackrubber_count < 6 and yellowtube_count == 2 and 513 > x[3]:
@@ -411,7 +378,7 @@ def toward_tool():
 
         print(blackrubber_count, yellowtube_count)     #0 0から始まり，手が正しい黒ゴムの棚に入ると1 0その後手前に手を持ってくると2 0最終的にすべて手前に集めると6 2になる
         
-        draw_hand2(color_arr, x, hand)
+        Hand.draw_hand(color_arr, x, hand)
         draw_goals(color_arr)
         flag = draw(color_arr)
         frame = color_arr[:, :, :3]
@@ -437,21 +404,6 @@ def finish():
     exit(0)
 
 
-def draw_hand2(color_arr, x, hand):  
-    cv2.drawContours(      #緑で手の輪郭を描画
-        color_arr,
-        hand.contour,
-        -1,
-        color=(0, 255, 0))
-
-    cv2.circle(            #緑で手の重心を描画
-        color_arr,
-        (int(x[0]), int(x[3])),
-        10,
-        color=(0, 255, 0),
-        thickness=-1
-        )
-    return time.time()
 
 
         
@@ -472,7 +424,7 @@ def draw(color_arr):
         return True
 
 def draw_goals(img):
-    for t in tools:
+    for t in right_shelevs:
         t.draw(
             img,
             color=(255, 0, 0)
@@ -480,8 +432,8 @@ def draw_goals(img):
 
 def draw_table(img): #テーブルの輪郭を緑で描写
     table_coordinates=load_coordinates("table_coordinates")
-    top_left = (int(table_coordinates[0][0]), int(table_coordinates[0][1]))
-    bottom_right = (int(table_coordinates[1][0]), int(table_coordinates[1][1]))
+    top_left = (int(table_coordinates[0]), int(table_coordinates[1]))
+    bottom_right = (int(table_coordinates[2]), int(table_coordinates[3]))
     cv2.rectangle(
         img,
         top_left,
@@ -525,14 +477,7 @@ def draw_point(img, x, y):
     
 
 
-def draw_imaginary_line(img, line_pt1, line_pt2):
-    cv2.rectangle(
-        img,
-        line_pt1,
-        line_pt2,
-        color=(255, 0, 0),
-        thickness=2
-    )
+
 
 def draw_marker_direction3(img, c0, c1):
     x1 = int(c0[0])     
@@ -561,21 +506,12 @@ def draw_marker_direction3(img, c0, c1):
                     thickness=1
     )
 
-def dot_in_object(contour, pt):
-    #return cv2.pointPolygonTest(contour, pt, False) 
-    x = int(pt[0]) 
-    if contour[0][0] < x < contour[3][0]:
-        return 1
-    elif contour[0][0] == x or x == contour[3][0]:
-        return 0
-    else:
-        return -1
     
 def dot_in_line(pt):
     x = int(pt[0])
     y = int(pt[1])
-    if (line1_pt1[0] -5  <= x <= line1_pt2[0] +5 or line2_pt1[0] -5 <= x <= line2_pt2[0] +5
-        or line3_pt1[0] -5 <= x <= line3_pt2[0] +5 or line4_pt1[0] -5<= x <= line4_pt2[0] +5):
+    if (line_coordinates[0][1] -5 <= x <= line_coordinates[0][3] +5 or line_coordinates[1][1] -5 <= x <= line_coordinates[1][3] +5
+        or line_coordinates[2][1] -5 <= x <= line_coordinates[2][3] +5 or line_coordinates[3][1] -5 <= x <= line_coordinates[3][3] +5):
         return 1
     else:
         return -1
@@ -583,62 +519,12 @@ def dot_in_line(pt):
 def dot_in_bar(pt):
     x = int(pt[0])
     y = int(pt[1])
-    if (bar1_pt1[1] -5 <= y <= bar1_pt2[1] +5 or bar2_pt1[1] -5 <= y <= bar2_pt2[1] +5
-        or bar3_pt1[1] -5 <= y <= bar3_pt2[1] +5):
+    if (bar_coordinates[0][1] -5 <= y <= bar_coordinates[0][3] +5 or bar_coordinates[1][1] -5 <= y <= bar_coordinates[1][3] +5
+        or bar_coordinates[2][1] -5 <= y <= bar_coordinates[2][3] +5):
         return 1
     else:
         return -1
 
-def line_in_object2(polygon, c0, c1):
-    #np_object = np.array(contour)
-    #np_object2 = np.squeeze(np_object)
-    x1 = int(c0[0]) 
-    y1 = int(c0[1])
-    x2 = int(c1[0])
-    y2 = int(c1[1])
-    if x2 == x1:
-        if polygon[0][0] < x1 and x1 < polygon[3][0]:
-            return 1
-        elif polygon[0][0] == x1 or x1 == polygon[3][0]:
-            return 0
-        else:
-            return -1
-
-    else:  
-        a = (y2 - y1)/(x2 - x1)
-        b = y1 - a * x1
-        question = -1
-        for x in range(279, 923):
-            y = a * x + b
-            if  polygon[0][0] < x < polygon[3][0] and polygon[0][1] < y < polygon[3][1]:
-                question = 1
-                return question
-        return question
-    
-def distance_from_line(query_point, c0, c1):
-    # 直線を構成する2点の座標
-    x1 = int(c0[0]) 
-    y1 = int(c0[1])
-    x2 = int(c1[0])
-    y2 = int(c1[1])
-
-    # 点の座標
-    #x0, y0 = query_point
-    x0 = int(query_point[0])
-    y0 = int(query_point[1])
-
-    # 直線の方程式の係数 (ax + by + 
-    #  = 0)
-    a = y2 - y1
-    b = x1 - x2
-    c = (x2 * y1) - (x1 * y2)
-
-    # 直線と点の距離を計算
-    numerator = abs(a * x0 + b * y0 + c)
-    denominator = math.sqrt(a**2 + b**2)
-    distance = numerator / denominator
-
-    return distance
 
 def distance_from_line2(query_point, c0, c1):
     # 直線を構成する2点の座標
@@ -718,6 +604,15 @@ def draw_imaginary_object(img, coordinates):
             color=(0, 255, 0),  # 緑色
             thickness=2
         )
+        
+def draw_imaginary_rectangle(img, top_left, bottom_right, color):
+    cv2.rectangle(
+        img,
+        top_left,
+        bottom_right,
+        color,
+        thickness=2
+    )
 
 
 def init():
