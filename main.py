@@ -18,6 +18,7 @@ from hand import Hand
 from marker import Marker
 from module_controller import ModuleController 
 from trajectory import Trajectory
+from goal import Goal
 import kalmanfilter as klf
 import math
 import random
@@ -70,37 +71,9 @@ bar2_polygon = np.array([[279, 383], [922, 403], [799, 383], [922, 403]])
 bar3_pt1 = (279, 493)
 bar3_pt2 = (922, 513)
 bar3_polygon = np.array([[279, 493], [922, 513], [799, 493], [922, 513]])
-
-class Goal:    #4つの棚に配置する丸(正しい部品があるときに丸を表示)
-    pos = None
-    radius = None
-
-    def __init__(self, u, v, radius, height, width):
-        self.pos = np.array([u, v])
-        self.radius = radius
-
-        self.h_max = v + height // 2
-        self.h_min = v - height // 2
-
-        self.w_max = u + width // 2
-        self.w_min = u - width // 2
-
-    def include(self, p):
-        dx = self.pos[0] - p[0]
-        dy = self.pos[1] - p[1]
-
-        return dx*dx + dy*dy < self.radius * self.radius
-
-    def draw(self, canvas, color): 
-        return cv2.circle(
-            canvas,
-            (self.pos[0], self.pos[1]),
-            self.radius,
-            color=color,
-            thickness=2
-        )
     
 
+#テーブル(作業場所)や棚の座標をロードする関数
 def load_coordinates(file_name):
     file_path = os.path.join(os.path.dirname(__file__), "coordinates_file", f"{file_name}.txt")
     coordinates_arr = np.loadtxt(file_path)
@@ -478,16 +451,7 @@ def draw_hand2(color_arr, x, hand):
         )
     return time.time()
 
-def draw1(color_arr):
-    #draw_goals(color_arr)
-    draw_table(color_arr)
-    cv2.imshow("img", color_arr)
-    
-    key = cv2.waitKey(1)
-    if key == ord("q"):
-        return False
-    else:
-        return True
+
         
 def draw(color_arr):
     draw_table(color_arr)
@@ -566,36 +530,6 @@ def draw_imaginary_line(img, line_pt1, line_pt2):
         line_pt2,
         color=(255, 0, 0),
         thickness=2
-    )
-
-def draw_marker_direction(img, c0, c1):
-    x1 = int(c0[0]) 
-    y1 = int(c0[1])
-    x2 = int(c1[0])
-    y2 = int(c1[1])
-
-    height, width, _ = img.shape
-
-    if x2 == x1:
-        x_1 = x1
-        y_1 = 0
-        x_2 = x2
-        y_2 = height
-    else:  
-        a = (y2 - y1)/(x2 - x1)
-        b = y1 - a * x1
-
-        x_1 = 0
-        y_1 = int(a * x_1 + b)
-
-        x_2 = width
-        y_2 = int(a * x_2 + b)
-
-    cv2.line(img, 
-            (x_1, y_1), 
-            (x_2, y_2), 
-                    color=(255, 0, 0), 
-                    thickness=1
     )
 
 def draw_marker_direction3(img, c0, c1):
