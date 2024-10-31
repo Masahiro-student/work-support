@@ -19,6 +19,9 @@ from marker import Marker
 from module_controller import ModuleController 
 from trajectory import Trajectory
 from shelves import Shelves
+from table import Table
+from bar import Bar
+from line import Line
 import kalmanfilter as klf
 import math
 import random
@@ -30,8 +33,6 @@ min_th_m = None
 max_th_m = None
 min_th_o = None
 max_th_o = None
-mask = None
-mask2 = None
 manager = None
 trajectory = None
 
@@ -47,17 +48,10 @@ fps = float(11)
 last_time = time.time()
 data = []
 mc = ModuleController()
-    
+kinect = Kinect()
 
-#テーブル(作業場所)や棚の座標など固定する物体の座標をロードする関数
-def load_coordinates(file_name):
-    file_path = os.path.join(os.path.dirname(__file__), "coordinates_file", f"{file_name}.txt")
-    coordinates_arr = np.loadtxt(file_path)
-    return coordinates_arr
-
-
-shelves_coordinates= load_coordinates("shelves_coordinates")
-
+# 棚の座標情報を取得
+shelves_coordinates= Shelves.load_coordinates("shelves_coordinates")
 
 right_shelevs = []   #正しい部品がある棚を格納
 wrong_shelves = []  #間違った部品がある棚を格納
@@ -70,8 +64,8 @@ else:
     true_index = 1
     wrong_index = 0
 
-right_shelevs.append(Shelves(shelves_coordinates[true_index][:2], shelves_coordinates[true_index][2:])) # black
-wrong_shelves.append(Shelves(shelves_coordinates[wrong_index][:2], shelves_coordinates[wrong_index][2:])) # wrong black
+right_shelevs.append(Shelves(tuple(shelves_coordinates[true_index][:2]), tuple(shelves_coordinates[true_index][2:]))) # black
+wrong_shelves.append(Shelves(tuple(shelves_coordinates[wrong_index][:2]), tuple(shelves_coordinates[wrong_index][2:]))) # wrong black
 
 # yellowチューブの2つの棚をランダムに1つを正解の棚にもう1つを間違いの棚にする
 if random.randint(0, 1) == 0:
@@ -81,39 +75,29 @@ else:
     true_index = 3
     wrong_index = 2
 
-right_shelevs.append(Shelves(shelves_coordinates[true_index][:2], shelves_coordinates[true_index][1])) # yellow
-wrong_shelves.append(Shelves(shelves_coordinates[wrong_index][:2], shelves_coordinates[wrong_index][1])) # wrong yellow
+right_shelevs.append(Shelves(tuple(shelves_coordinates[true_index][:2]), tuple(shelves_coordinates[true_index][2:]))) # yellow
+wrong_shelves.append(Shelves(tuple(shelves_coordinates[wrong_index][:2]), tuple(shelves_coordinates[wrong_index][2:]))) # wrong yellow
 
 # # 正解の棚を固定する．どちらも左側が正解の棚
 # right_shelevs.extend([Shelves(shelves_coordinates[0][0], shelves_coordinates[0][1], radius, shelves_heights[0], shelves_widths[0]), Shelves(shelves_coordinates[2][0], shelves_coordinates[2][1], radius, shelves_heights[2], shelves_widths[2])])
 # wrong_shelves.extend([Shelves(shelves_coordinates[1][0], shelves_coordinates[1][1], radius, shelves_heights[1], shelves_widths[1]), Shelves(shelves_coordinates[3][0], shelves_coordinates[3][1], radius, shelves_heights[3], shelves_widths[3])])
 
-bar_coordinates = load_coordinates("bar_coordinates")
-line_coordinates = load_coordinates("line_coordinates")
-table_coordinates = load_coordinates("table_coordinates")
+table_coordinates = Table.load_coordinates("table_coordinates")
+table = Table(tuple(table_coordinates[:2]), tuple(table_coordinates[2:]))
+
+# barの情報を格納する辞書を作成
+bar_coordinates = Bar.load_coordinates("bar_coordinates")
+bars = {}
+for i in range(bar_coordinates.shape[0]):
+    bars[f'bar_{i+1}'] = Bar(tuple(bar_coordinates[i][:2]), tuple(bar_coordinates[i][:4]))
+    
+# lineの情報を格納する辞書を作成
+line_coordinates = Line.load_coordinates("line_coordinates")
+lines = {}
+for i in range(line_coordinates.shape[0]):
+    lines[f'bar_{i+1}'] = Line(tuple(line_coordinates[i][:2]), tuple(line_coordinates[i][:4]))
 
 
-
-
-
-# def load_mask():   #カメラの画角のうち画像認識するのは緑の作業台だけでいいのでそこ以外を切り取るため(画像(mask.png)を使ってやる方法)
-#     mask = Image.open("/home/toyoshima/script/hand_detection/mask.png")
-#     # mask = Image.open("mask.png")
-#     return np.asarray(mask)
-
-def load_mask_hand():     #同上(具体的に座標を与えて切り取るやり方)ピンクの手袋用
-    mask = np.zeros((720,1280))
-    for i in range(285, 915):
-        for j in range(173, 612):
-            mask[j][i] = 1
-    return mask
-
-def load_mask_marker():     #同上(具体的に座標を与えて切り取るやり方)黄色いマーカー用
-    mask = np.zeros((720,1280))
-    for i in range(285, 915):
-        for j in range(255, 612):
-            mask[j][i] = 1
-    return mask
 
 def load_threshold_h():    #ピンクの手袋を認識するためのしきい値をロード　(ロードするファイルは4つ数字が書いてあり，左上;hueの下限　左下;hueの上限　右上;hueの下限　右下;hueの上限)
     return Hand.load_hs_threshold("hand_threshold")
@@ -129,16 +113,15 @@ def kinect_color():
     def get_color():
         kinect.update()
         return kinect.color_arr
-
     return get_color
 
 
 get_color_arr = kinect_color()           
 
-def search_object(in_out):   #溝振動用
-    if in_out == 1:
+def send_pwm(frag):   #溝振動用
+    if frag == 1:
         mc.send_pwm(0,100)
-    elif in_out == 0:
+    elif frag == 0:
         mc.send_pwm(0,100)
     else:
         mc.send_pwm(0,0)
@@ -177,13 +160,14 @@ def toward_tool():
     
     blackrubber = right_shelevs[0]
     yellowtube = right_shelevs[1]
-    wrong_goals = wrong_shelves
 
     flag = True
     blackrubber_count = 0    #正しいゴム足の棚に手を入れると+1,その後作業台手前に手が入ると+1   (偶数で部品を手に取ろうとしている段階，奇数で部品を手にとって手前に戻す段階)
     yellowtube_count = 0
+    mask = table.load_mask()  #検知を行う範囲はテーブル上のみなのでテーブル上のみ値が1であるmaskを制作
+    
     hand = Hand(min_th_h, max_th_h, mask)
-    marker = Marker(min_th_m, max_th_m, mask2)
+    marker = Marker(min_th_m, max_th_m, mask)
 
 
 
@@ -248,7 +232,7 @@ def toward_tool():
            mc.valve(1,1) 
            mc.valve(2,1)       
 
-        if in_wrong_place([x[0],x[3]], wrong_goals):   #間違った部品棚に手が入ったときに断続的振動　　マルチスレッドにして経過時間でsend_pwmの強さを切り替えたほうがいい
+        if in_wrong_place([x[0],x[3]], wrong_shelves):   #間違った部品棚に手が入ったときに断続的振動　　マルチスレッドにして経過時間でsend_pwmの強さを切り替えたほうがいい
             wrong_place_count = wrong_place_count + 1
             not_wrong_place_count = 0
             if wrong_place_count % 4 == 1:
@@ -264,7 +248,7 @@ def toward_tool():
                 mc.send_pwm(10,0)   
             wrong_place_count = 0
 
-        if deltax < 5 and not in_wrong_place([x[0],x[3]], wrong_goals):      #前回ループから手の進んだ距離が5未満ならカルマンフィルタによる予測位置を使わない
+        if deltax < 5 and not in_wrong_place([x[0],x[3]], wrong_shelves):      #前回ループから手の進んだ距離が5未満ならカルマンフィルタによる予測位置を使わない
             draw_marker_direction3(color_arr,[xm1[0],xm1[3]], [x[0],x[3]])  #予測の方向の直線
             draw_point(color_arr, x[0], x[3])    #予測なし手の重心描画
             draw_point(color_arr, xm1[0], xm1[3])  #予測なしマーカーの重心描画
@@ -283,7 +267,7 @@ def toward_tool():
                 else:
                     mc.send_pwm(10,0)
                     mc.send_pwm(14,0)
-                search_object(dot_in_bar([x[0],x[3]]))    #溝による振動
+                send_pwm(dot_in_bar([x[0],x[3]]))    #溝による振動
             elif (blackrubber_count % 2 == 1 or yellowtube_count % 2 == 1) and blackrubber_count < 6 and yellowtube_count == 2:     #手に取った部品を手前に持ってくるフェーズかつゴム足が残っている
                 if in_black([x[0],x[3]], blackrubber.h_min, blackrubber.h_max, blackrubber.w_min, blackrubber.w_max):
                     mc.send_pwm(10,100)
@@ -291,7 +275,7 @@ def toward_tool():
                 else:
                     mc.send_pwm(10,0)
                     mc.send_pwm(14,0)
-                search_object(dot_in_bar([x[0],x[3]]))
+                send_pwm(dot_in_bar([x[0],x[3]]))
             elif (blackrubber_count % 2 == 1 or yellowtube_count % 2 == 1) and blackrubber_count == 6 and yellowtube_count < 2:     #手に取った部品を手前に持ってくるフェーズかつチューブが残っている
                 if in_yellow([x[0],x[3]], yellowtube.h_min, yellowtube.h_max, yellowtube.w_min, yellowtube.w_max):
                     mc.send_pwm(10,100)
@@ -299,9 +283,9 @@ def toward_tool():
                 else:
                     mc.send_pwm(10,0)
                     mc.send_pwm(14,0)
-                search_object(dot_in_bar([x[0],x[3]]))
+                send_pwm(dot_in_bar([x[0],x[3]]))
             elif blackrubber_count == 6 and yellowtube_count == 2:
-                search_object(dot_in_line([x[0],x[3]]))
+                send_pwm(dot_in_line([x[0],x[3]]))
                     
             else:
                 mc.send_pwm(0,0)
@@ -310,7 +294,7 @@ def toward_tool():
                 x[i]  = 0
                 xm1[i] = 0
 
-        elif deltax >= 5 and not in_wrong_place([x[0],x[3]], wrong_goals):      #カルマンフィルタによる予測座標を使う場合
+        elif deltax >= 5 and not in_wrong_place([x[0],x[3]], wrong_shelves):      #カルマンフィルタによる予測座標を使う場合
             draw_prediction(color_arr,h_pred3) #予測場所を点で表示
             draw_prediction(color_arr,h_pred3_1)   #予測場所を点で表示
             draw_marker_direction3(color_arr,[h_pred3_1[0],h_pred3_1[3]], [h_pred3[0],h_pred3[3]])    #予測した手の方向
@@ -329,7 +313,7 @@ def toward_tool():
                 else:
                     mc.send_pwm(10,0)
                     mc.send_pwm(14,0)
-                search_object(dot_in_bar([h_pred3[0],h_pred3[3]]))
+                send_pwm(dot_in_bar([h_pred3[0],h_pred3[3]]))
             elif (blackrubber_count % 2 == 1 or yellowtube_count % 2 == 1) and blackrubber_count < 6 and yellowtube_count == 2:
                 if in_black([x[0],x[3]], blackrubber.h_min, blackrubber.h_max, blackrubber.w_min, blackrubber.w_max):
                     mc.send_pwm(10,100)
@@ -337,7 +321,7 @@ def toward_tool():
                 else:
                     mc.send_pwm(10,0)
                     mc.send_pwm(14,0)
-                search_object(dot_in_bar([h_pred3[0],h_pred3[3]]))
+                send_pwm(dot_in_bar([h_pred3[0],h_pred3[3]]))
             elif (blackrubber_count % 2 == 1 or yellowtube_count % 2 == 1) and blackrubber_count == 6 and yellowtube_count < 2:
                 if in_yellow([x[0],x[3]], yellowtube.h_min, yellowtube.h_max, yellowtube.w_min, yellowtube.w_max):
                     mc.send_pwm(10,100)
@@ -345,9 +329,9 @@ def toward_tool():
                 else:
                     mc.send_pwm(10,0)
                     mc.send_pwm(14,0)
-                search_object(dot_in_bar([h_pred3[0],h_pred3[3]]))            
+                send_pwm(dot_in_bar([h_pred3[0],h_pred3[3]]))            
             elif blackrubber_count == 6 and yellowtube_count == 2:
-                search_object(dot_in_line([h_pred3[0],h_pred3[3]]))
+                send_pwm(dot_in_line([h_pred3[0],h_pred3[3]]))
             else:
                 mc.send_pwm(0,0)
                 
@@ -408,7 +392,7 @@ def finish():
 
         
 def draw(color_arr):
-    draw_table(color_arr)
+    Table.draw_rectangle(color_arr, (0, 255, 0))
     cv2.imshow("img", color_arr)
     
     key = cv2.waitKey(1)
@@ -431,9 +415,7 @@ def draw_goals(img):
         )
 
 def draw_table(img): #テーブルの輪郭を緑で描写
-    table_coordinates=load_coordinates("table_coordinates")
-    top_left = (int(table_coordinates[0]), int(table_coordinates[1]))
-    bottom_right = (int(table_coordinates[2]), int(table_coordinates[3]))
+    table_coordinates=Table.load_coordinates("table_coordinates")
     cv2.rectangle(
         img,
         top_left,
@@ -570,6 +552,8 @@ def search_goal(zeroone):
 def in_black(pos, h_min, h_max, w_min, w_max):      #手が正しいゴム足の棚に入っているかを判定
     if w_min < pos[0] < w_max and h_min < pos[1] < h_max:
         return True
+    
+
 
 def out_black(pos, h_min=513, h_max=612):      #手が手前(部品を置く場所)に入っているかを判定
     if h_min < pos[1] < h_max:
@@ -583,8 +567,8 @@ def out_yellow(pos, h_min=513, h_max=612):       #手が手前(部品を置く�
     if h_min < pos[1] < h_max:
         return True
     
-def in_wrong_place(pos, wrong_goals):     #手が間違った部品の棚にあるかを判定
-    for goal in wrong_goals:
+def in_wrong_place(pos, wrong_shelves):     #手が間違った部品の棚にあるかを判定
+    for goal in wrong_shelves:
         if (goal.w_min < pos[0] < goal.w_max) and (goal.h_min < pos[1] < goal.h_max):
             return True
     
@@ -616,9 +600,7 @@ def draw_imaginary_rectangle(img, top_left, bottom_right, color):
 
 
 def init():
-    global mask, mask2, min_th_h, max_th_h, min_th_m, max_th_m, min_th_o, max_th_o,manager, begin_time
-    mask = load_mask_hand()
-    mask2 = load_mask_marker()
+    global min_th_h, max_th_h, min_th_m, max_th_m, min_th_o, max_th_o,manager, begin_time
     (min_th_h, max_th_h) = load_threshold_h()
     (min_th_m, max_th_m) = load_threshold_m()
 
