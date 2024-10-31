@@ -1,3 +1,4 @@
+
 from object import Object
 
 class Line (Object):
